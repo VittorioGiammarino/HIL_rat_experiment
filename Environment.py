@@ -19,8 +19,9 @@ def Generate_world_subgoals_simplified():
     mapsize = [10, 11]
     map = np.zeros( (mapsize[0],mapsize[1]) )
     #define obstacles
-    map[0:4,5]=1;
-    map[6:mapsize[0],5]=1;
+    map[0,5] = 1
+    map[3:7,5]=1;
+    map[mapsize[0]-1,5]=1;
 
     #count trees
     ntrees=0;
@@ -32,20 +33,20 @@ def Generate_world_subgoals_simplified():
                 ntrees += 1
 
     #shooters
-    nshooters=1;
-    shooters = np.array([3, 2])
-    map[shooters[1],shooters[0]]=2
+    # nshooters=1;
+    # shooters = np.array([3, 2])
+    # map[shooters[1],shooters[0]]=2
 
-    #pick up
-    pick_up = np.array([7, 1])
+    #R1
+    pick_up = np.array([1, 8])
     map[pick_up[1],pick_up[0]]=3
 
-    #drop off
-    drop_off = np.array([1, 8])
+    #R2
+    drop_off = np.array([9, 8])
     map[drop_off[1],drop_off[0]]=4
 
     #base
-    base = np.array([mapsize[1]-2, mapsize[0]-2])
+    base = np.array([1, 1])
     map[base[1],base[0]]=5
 
     plt.figure()
@@ -56,8 +57,8 @@ def Generate_world_subgoals_simplified():
              [pick_up[1], pick_up[1]+1, pick_up[1]+1, pick_up[1], pick_up[1]],'k-')
     plt.plot([drop_off[0], drop_off[0], drop_off[0]+1, drop_off[0]+1, drop_off[0]],
              [drop_off[1], drop_off[1]+1, drop_off[1]+1, drop_off[1], drop_off[1]],'k-')
-    plt.plot([shooters[0], shooters[0], shooters[0]+1, shooters[0]+1, shooters[0]],
-             [shooters[1], shooters[1]+1, shooters[1]+1, shooters[1], shooters[1]],'k-')
+    # plt.plot([shooters[0], shooters[0], shooters[0]+1, shooters[0]+1, shooters[0]],
+    #          [shooters[1], shooters[1]+1, shooters[1]+1, shooters[1], shooters[1]],'k-')
 
     for i in range(0,ntrees):
         plt.plot([trees[i,0], trees[i,0], trees[i,0]+1, trees[i,0]+1, trees[i,0]],
@@ -68,23 +69,23 @@ def Generate_world_subgoals_simplified():
     plt.fill([pick_up[0], pick_up[0], pick_up[0]+1, pick_up[0]+1, pick_up[0]],
              [pick_up[1], pick_up[1]+1, pick_up[1]+1, pick_up[1], pick_up[1]],'y')
     plt.fill([drop_off[0], drop_off[0], drop_off[0]+1, drop_off[0]+1, drop_off[0]],
-             [drop_off[1], drop_off[1]+1, drop_off[1]+1, drop_off[1], drop_off[1]],'b')
-    plt.fill([shooters[0], shooters[0], shooters[0]+1, shooters[0]+1, shooters[0]],
-             [shooters[1], shooters[1]+1, shooters[1]+1, shooters[1], shooters[1]],'c')
+             [drop_off[1], drop_off[1]+1, drop_off[1]+1, drop_off[1], drop_off[1]],'y')
+    # plt.fill([shooters[0], shooters[0], shooters[0]+1, shooters[0]+1, shooters[0]],
+    #          [shooters[1], shooters[1]+1, shooters[1]+1, shooters[1], shooters[1]],'c')
 
     for i in range(0,ntrees):
         plt.fill([trees[i,0], trees[i,0], trees[i,0]+1, trees[i,0]+1, trees[i,0]],
          [trees[i,1], trees[i,1]+1, trees[i,1]+1, trees[i,1], trees[i,1]],'g')
 
     plt.text(base[0]+0.5, base[1]+0.5, 'B')
-    plt.text(pick_up[0]+0.5, pick_up[1]+0.5, 'P')
-    plt.text(drop_off[0]+0.5, drop_off[1]+0.5, 'D')
-    plt.text(shooters[0]+0.5, shooters[1]+0.5, 'S')
+    plt.text(pick_up[0]+0.5, pick_up[1]+0.5, 'R1')
+    plt.text(drop_off[0]+0.5, drop_off[1]+0.5, 'R2')
+    # plt.text(shooters[0]+0.5, shooters[1]+0.5, 'S')
 
 
     return map
 
-def PlotOptimalSolution(map,stateSpace,u,name_pick_up, name_drop_off):
+def PlotOptimalSolution(map,stateSpace,u,name):
 
     mapsize = map.shape
     #count trees
@@ -102,7 +103,7 @@ def PlotOptimalSolution(map,stateSpace,u,name_pick_up, name_drop_off):
                 nshooters+=1
 
     #pickup station
-    PickUpIndex=ss.PickUpStateIndex(stateSpace,map)
+    PickUpIndex=ss.R1StateIndex(stateSpace,map)
     i_pickup = stateSpace[PickUpIndex,0]
     j_pickup = stateSpace[PickUpIndex,1]
     pick_up = np.array([j_pickup, i_pickup])
@@ -112,18 +113,11 @@ def PlotOptimalSolution(map,stateSpace,u,name_pick_up, name_drop_off):
     j_base = stateSpace[BaseIndex,1]
     base = np.array([j_base, i_base])
     #drop_off
-    DropOffIndex = ss.TerminalStateIndex(stateSpace,map)
+    DropOffIndex = ss.R2StateIndex(stateSpace,map)
     i_dropoff = stateSpace[DropOffIndex,0]
     j_dropoff = stateSpace[DropOffIndex,1]
     drop_off = np.array([j_dropoff, i_dropoff])
-    # split the solution in pick up and drop off
-    u_pick = np.zeros(int(u.shape[0]/2))
-    u_drop = np.zeros(int(u.shape[0]/2))
-    j=0
-    for i in range(1,u.shape[0],2):
-        u_pick[j]=u[i-1]
-        u_drop[j]=u[i]
-        j+=1
+
     # PICK_UP
     plt.figure()
     plt.plot([0, mapsize[1], mapsize[1], 0, 0],[0, 0, mapsize[0], mapsize[0], 0],'k-')
@@ -147,7 +141,7 @@ def PlotOptimalSolution(map,stateSpace,u,name_pick_up, name_drop_off):
     plt.fill([pick_up[0], pick_up[0], pick_up[0]+1, pick_up[0]+1, pick_up[0]],
                  [pick_up[1], pick_up[1]+1, pick_up[1]+1, pick_up[1], pick_up[1]],'y')
     plt.fill([drop_off[0], drop_off[0], drop_off[0]+1, drop_off[0]+1, drop_off[0]],
-                 [drop_off[1], drop_off[1]+1, drop_off[1]+1, drop_off[1], drop_off[1]],'b')
+                 [drop_off[1], drop_off[1]+1, drop_off[1]+1, drop_off[1], drop_off[1]],'y')
 
     for i in range(0,nshooters):
         plt.fill([shooters[i,0], shooters[i,0], shooters[i,0]+1, shooters[i,0]+1, shooters[i,0]],
@@ -158,85 +152,27 @@ def PlotOptimalSolution(map,stateSpace,u,name_pick_up, name_drop_off):
                 [trees[i,1], trees[i,1]+1, trees[i,1]+1, trees[i,1], trees[i,1]],'g')
 
     plt.text(base[0]+0.5, base[1]+0.5, 'B')
-    plt.text(pick_up[0]+0.5, pick_up[1]+0.5, 'P')
-    plt.text(drop_off[0]+0.5, drop_off[1]+0.5, 'D')
+    plt.text(pick_up[0]+0.5, pick_up[1]+0.5, 'R1')
+    plt.text(drop_off[0]+0.5, drop_off[1]+0.5, 'R2')
     for i in range(0,nshooters):
         plt.text(shooters[i,0]+0.5, shooters[i,1]+0.5, 'S')
 
-    p=0
-    for s in range(0,u_pick.shape[0]):
-        if u_pick[s] == ss.NORTH:
+    for s in range(0,u.shape[0]):
+        if u[s] == ss.NORTH:
             txt = u'\u2191'
-        elif u_pick[s] == ss.SOUTH:
+        elif u[s] == ss.SOUTH:
             txt = u'\u2193'
-        elif u_pick[s] == ss.EAST:
+        elif u[s] == ss.EAST:
             txt = u'\u2192'
-        elif u_pick[s] == ss.WEST:
+        elif u[s] == ss.WEST:
             txt = u'\u2190'
-        elif u_pick[s] == ss.HOVER:
+        elif u[s] == ss.HOVER:
             txt = u'\u2715'
-        plt.text(stateSpace[p,1]+0.3, stateSpace[p,0]+0.5,txt)
-        if p < u.shape[0]-1:
-            p=p+2
+        plt.text(stateSpace[s,1]+0.3, stateSpace[s,0]+0.5,txt)
             
-    plt.savefig(name_pick_up, format='eps')
+    plt.savefig(name, format='eps')
 
-    # DROP_OFF
-    plt.figure()
-    plt.plot([0, mapsize[1], mapsize[1], 0, 0],[0, 0, mapsize[0], mapsize[0], 0],'k-')
-    plt.plot([base[0], base[0], base[0]+1, base[0]+1, base[0]],
-                 [base[1], base[1]+1, base[1]+1, base[1], base[1]],'k-')
-    plt.plot([pick_up[0], pick_up[0], pick_up[0]+1, pick_up[0]+1, pick_up[0]],
-                 [pick_up[1], pick_up[1]+1, pick_up[1]+1, pick_up[1], pick_up[1]],'k-')
-    plt.plot([drop_off[0], drop_off[0], drop_off[0]+1, drop_off[0]+1, drop_off[0]],
-                 [drop_off[1], drop_off[1]+1, drop_off[1]+1, drop_off[1], drop_off[1]],'k-')
 
-    for i in range(0,nshooters):
-        plt.plot([shooters[i,0], shooters[i,0], shooters[i,0]+1, shooters[i,0]+1, shooters[i,0]],
-                 [shooters[i,1], shooters[i,1]+1, shooters[i,1]+1, shooters[i,1], shooters[i,1]],'k-')
-
-    for i in range(0,ntrees):
-        plt.plot([trees[i,0], trees[i,0], trees[i,0]+1, trees[i,0]+1, trees[i,0]],
-                 [trees[i,1], trees[i,1]+1, trees[i,1]+1, trees[i,1], trees[i,1]],'k-')
-
-    plt.fill([base[0], base[0], base[0]+1, base[0]+1, base[0]],
-                 [base[1], base[1]+1, base[1]+1, base[1], base[1]],'r')
-    plt.fill([pick_up[0], pick_up[0], pick_up[0]+1, pick_up[0]+1, pick_up[0]],
-                 [pick_up[1], pick_up[1]+1, pick_up[1]+1, pick_up[1], pick_up[1]],'y')
-    plt.fill([drop_off[0], drop_off[0], drop_off[0]+1, drop_off[0]+1, drop_off[0]],
-                 [drop_off[1], drop_off[1]+1, drop_off[1]+1, drop_off[1], drop_off[1]],'b')
-
-    for i in range(0,nshooters):
-        plt.fill([shooters[i,0], shooters[i,0], shooters[i,0]+1, shooters[i,0]+1, shooters[i,0]],
-                 [shooters[i,1], shooters[i,1]+1, shooters[i,1]+1, shooters[i,1], shooters[i,1]],'c')
-
-    for i in range(0,ntrees):
-        plt.fill([trees[i,0], trees[i,0], trees[i,0]+1, trees[i,0]+1, trees[i,0]],
-                [trees[i,1], trees[i,1]+1, trees[i,1]+1, trees[i,1], trees[i,1]],'g')
-
-    plt.text(base[0]+0.5, base[1]+0.5, 'B')
-    plt.text(pick_up[0]+0.5, pick_up[1]+0.5, 'P')
-    plt.text(drop_off[0]+0.5, drop_off[1]+0.5, 'D')
-    for i in range(0,nshooters):
-        plt.text(shooters[i,0]+0.5, shooters[i,1]+0.5, 'S')
-
-    p=1
-    for s in range(0,u_drop.shape[0]):
-        if u_drop[s] == ss.NORTH:
-            txt = u'\u2191'
-        elif u_drop[s] == ss.SOUTH:
-            txt = u'\u2193'
-        elif u_drop[s] == ss.EAST:
-            txt = u'\u2192'
-        elif u_drop[s] == ss.WEST:
-            txt = u'\u2190'
-        elif u_drop[s] == ss.HOVER:
-            txt = u'\u2715'
-        plt.text(stateSpace[p,1]+0.3, stateSpace[p,0]+0.5,txt)
-        if p < u.shape[0]:
-            p=p+2
-            
-    plt.savefig(name_drop_off, format='eps')
 
 def VideoSimulation(map,stateSpace,u,states,name_video):
     mapsize = map.shape

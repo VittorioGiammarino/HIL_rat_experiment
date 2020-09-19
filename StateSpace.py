@@ -34,12 +34,12 @@ HOVER = 4
 def GenerateStateSpace(map):
     print('Generate State Space')
 
-    stateSpace = np.empty((0,3),int)
+    stateSpace = np.empty((0,2),int)
 
     for m in range(0,map.shape[0]):
         for n in range(0,map.shape[1]):
             if map[m,n] != TREE:
-                stateSpace = np.append(stateSpace, [[m, n, 0], [m, n, 1]], 0)
+                stateSpace = np.append(stateSpace, [[m, n]], 0)
             
     return stateSpace
 
@@ -58,13 +58,13 @@ def BaseStateIndex(stateSpace, map):
                 break
             
     for i in range(0,K):
-        if stateSpace[i,0]==m and stateSpace[i,1]==n and stateSpace[i,2]==0:
+        if stateSpace[i,0]==m and stateSpace[i,1]==n:
             stateIndex = i
             break
     
     return stateIndex
 
-def TerminalStateIndex(stateSpace, map):
+def R2StateIndex(stateSpace, map):
     
     global DROP_OFF
     
@@ -78,13 +78,13 @@ def TerminalStateIndex(stateSpace, map):
                 break
             
     for i in range(0,K):
-        if stateSpace[i,0]==m and stateSpace[i,1]==n and stateSpace[i,2]==1:
+        if stateSpace[i,0]==m and stateSpace[i,1]==n:
             stateIndex = i
             break
     
     return stateIndex
 
-def PickUpStateIndex(stateSpace, map):
+def R1StateIndex(stateSpace, map):
     
     global PICK_UP
     
@@ -98,7 +98,7 @@ def PickUpStateIndex(stateSpace, map):
                 break
             
     for i in range(0,K):
-        if stateSpace[i,0]==m and stateSpace[i,1]==n and stateSpace[i,2]==0:
+        if stateSpace[i,0]==m and stateSpace[i,1]==n:
             stateIndex = i
             break
     
@@ -111,7 +111,7 @@ def FindStateIndex(stateSpace, value):
     stateIndex = 0
     
     for k in range(0,K):
-        if stateSpace[k,0]==value[0] and stateSpace[k,1]==value[1] and stateSpace[k,2]==value[2]:
+        if stateSpace[k,0]==value[0] and stateSpace[k,1]==value[1]:
             stateIndex = k
     
     return stateIndex

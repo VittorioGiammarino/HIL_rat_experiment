@@ -25,13 +25,20 @@ map = env.Generate_world_subgoals_simplified()
 # %% Generate State Space
 stateSpace=ss.GenerateStateSpace(map)            
 K = stateSpace.shape[0];
-TERMINAL_STATE_INDEX = ss.TerminalStateIndex(stateSpace,map)
+R2_STATE_INDEX = ss.R2StateIndex(stateSpace,map)
+R1_STATE_INDEX = ss.R1StateIndex(stateSpace,map)
 P = dp.ComputeTransitionProbabilityMatrix(stateSpace,map)
-G = dp.ComputeStageCosts(stateSpace,map)
-[J_opt_vi,u_opt_ind_vi] = dp.ValueIteration(P,G,TERMINAL_STATE_INDEX)
+GR1 = dp.ComputeStageCostsR1(stateSpace,map)
+GR2 = dp.ComputeStageCostsR2(stateSpace,map)
+GBoth = dp.ComputeStageCostsR1andR2(stateSpace, map)
+[J_opt_vi_R1,u_opt_ind_vi_R1] = dp.ValueIteration(P,GR1,R1_STATE_INDEX)
+[J_opt_vi_R2,u_opt_ind_vi_R2] = dp.ValueIteration(P,GR2,R2_STATE_INDEX)
+[J_opt_vi_Both,u_opt_ind_vi_Both] = dp.ValueIteration_Both(P,GBoth,R1_STATE_INDEX,R2_STATE_INDEX)
 
 # %% Plot Optimal Solution
-env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi, 'Figures/FiguresExpert/Expert_pickup.eps', 'Figures/FiguresExpert/Expert_dropoff.eps')
+env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_R1, 'Figures/FiguresExpert/Expert_R1.eps')
+env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_R2, 'Figures/FiguresExpert/Expert_R2.eps')
+env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_Both, 'Figures/FiguresExpert/Expert_Both.eps')
 
 # %% Generate Expert's trajectories
 T=150
