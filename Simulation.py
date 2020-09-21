@@ -7,21 +7,56 @@ Created on Sun Jun 28 16:10:39 2020
 """
 import numpy as np
 
-def SampleTrajMDP(P,u,max_epoch,nTraj,initial_state,terminal_state):
+def UpdateReward(psi, x, terminal_state1, terminal_state2):
+    epsilon1 = 0.9
+    u1 = np.random.rand()
+    epsilon2 = 0.8
+    u2 = np.random.rand()
+    
+    if psi == 0 and u2 > epsilon2:
+        psi = 2
+    elif psi == 1 and u1 > epsilon1:
+        psi = 2
+    elif psi == 3 and u1 > epsilon1:
+        psi = 0
+    elif psi == 3 and u2 > epsilon2:
+        psi = 1
+    elif psi == 3 and u1 > epsilon1 and u2 > epsilon2:
+        psi = 2
+        
+    if psi == 0 and x == terminal_state1:
+        psi = 3
+    elif psi == 1 and x == terminal_state2:
+        psi = 3 
+    elif psi == 2 and x == terminal_state1:
+        psi = 1
+    elif psi == 2 and x == terminal_state2:
+        psi = 0
+        
+    return psi
+    
+
+def SampleTrajMDP(P, u, max_epoch, nTraj, initial_state, terminal_state1, terminal_state2):
     
     traj = [[None]*1 for _ in range(nTraj)]
     control = [[None]*1 for _ in range(nTraj)]
-    flag = np.empty((0,0),int)
+    reward = np.empty((0,0),int)
+    psi_evolution = [[None]*1 for _ in range(nTraj)]
     
     for t in range(0,nTraj):
         
         x = np.empty((0,0),int)
         x = np.append(x, initial_state)
         u_tot = np.empty((0,0))
+        psi_tot = np.empty((0,0),int)
+        psi = 3
+        psi_tot = np.append(psi_tot, psi)
+        r=0
         
         for k in range(0,max_epoch):
-            x_k_possible=np.where(P[x[k],:,int(u[x[k]])]!=0)
-            prob = P[x[k],x_k_possible[0][:],int(u[x[k]])]
+            
+            x_k_possible=np.where(P[x[k],:,int(u[x[k],psi])]!=0)
+            prob = P[x[k],x_k_possible[0][:],int(u[x[k],psi])]
             prob_rescaled = np.divide(prob,np.amin(prob))
             
             for i in range(1,prob_rescaled.shape[0]):
@@ -29,23 +64,23 @@ def SampleTrajMDP(P,u,max_epoch,nTraj,initial_state,terminal_state):
             draw=np.divide(np.random.rand(),np.amin(prob))
             index_x_plus1=np.amin(np.where(draw<prob_rescaled))
             x = np.append(x, x_k_possible[0][index_x_plus1])
-            u_tot = np.append(u_tot,u[x[k]])
+            u_tot = np.append(u_tot,u[x[k],psi])
             
-            if x[k+1]==terminal_state:
-                u_tot = np.append(u_tot,u[terminal_state])
-                break
+            if x[k] == terminal_state1 or x[k] == terminal_state2:
+                r = r + 1 
+            
+            # Randomly update the reward
+            psi = UpdateReward(psi, x[k], terminal_state1, terminal_state2)
+            psi_tot = np.append(psi_tot, psi)
+            
+
         
-        traj[t][:] = x
-        control[t][:]=u_tot
+        traj[t] = x
+        control[t] = u_tot
+        psi_evolution[t] = psi_tot                
+        reward = np.append(reward,r)
         
-        if x[-1]==terminal_state:
-            success = 1
-        else:
-            success = 0
-                
-        flag = np.append(flag,success)
-        
-    return traj, control, flag
+    return traj, control, psi_evolution, reward
 
 
 def StochasticSampleTrajMDP(P,u_policy,max_epoch,nTraj,initial_state,terminal_state):

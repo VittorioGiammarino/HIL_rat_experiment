@@ -34,8 +34,12 @@ GBoth = dp.ComputeStageCostsR1andR2(stateSpace, map)
 [J_opt_vi_R1,u_opt_ind_vi_R1] = dp.ValueIteration(P,GR1,R1_STATE_INDEX)
 [J_opt_vi_R2,u_opt_ind_vi_R2] = dp.ValueIteration(P,GR2,R2_STATE_INDEX)
 [J_opt_vi_Both,u_opt_ind_vi_Both] = dp.ValueIteration_Both(P,GBoth,R1_STATE_INDEX,R2_STATE_INDEX)
-
+u_opt_ind_vi_R1 = u_opt_ind_vi_R1.reshape(len(u_opt_ind_vi_R1),1)
+u_opt_ind_vi_R2 = u_opt_ind_vi_R2.reshape(len(u_opt_ind_vi_R2),1)
+u_opt_ind_vi_Both = u_opt_ind_vi_Both.reshape(len(u_opt_ind_vi_Both),1)
+u_tot_Expert = np.concatenate((u_opt_ind_vi_R1, u_opt_ind_vi_R2, u_opt_ind_vi_Both,ss.HOVER*np.ones((len(u_opt_ind_vi_R1),1))),1)
 # %% Plot Optimal Solution
+
 env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_R1, 'Figures/FiguresExpert/Expert_R1.eps')
 env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_R2, 'Figures/FiguresExpert/Expert_R2.eps')
 env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_Both, 'Figures/FiguresExpert/Expert_Both.eps')
@@ -43,11 +47,11 @@ env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_Both, 'Figures/FiguresExpert
 # %% Generate Expert's trajectories
 T=150
 base=ss.BaseStateIndex(stateSpace,map)
-[traj,control,flag]=sim.SampleTrajMDP(P, u_opt_ind_vi, 1000, T, base, TERMINAL_STATE_INDEX)
-labels, TrainingSet = bc.ProcessData(traj,control,stateSpace)
+traj, control, psi_evolution, reward = sim.SampleTrajMDP(P, u_tot_Expert, 300, T, base, R1_STATE_INDEX,R2_STATE_INDEX)
+labels, TrainingSet = bc.ProcessData(traj,control,psi_evolution,stateSpace)
 
 # %% Simulation
-env.VideoSimulation(map,stateSpace,control[1][:],traj[1][:], 'Videos/VideosExpert/Expert_video_simulation.mp4')
+env.VideoSimulation(map,stateSpace,control[1][:],traj[1][:], psi_evolution[1][:], 'Videos/VideosExpert/Expert_video_simulation.mp4')
 
 # %% HIL initialization
 option_space = 2

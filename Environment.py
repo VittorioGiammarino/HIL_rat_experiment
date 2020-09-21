@@ -174,7 +174,7 @@ def PlotOptimalSolution(map,stateSpace,u,name):
 
 
 
-def VideoSimulation(map,stateSpace,u,states,name_video):
+def VideoSimulation(map,stateSpace,u,states,psi,name_video):
     mapsize = map.shape
     #count trees
     ntrees=0;
@@ -191,7 +191,7 @@ def VideoSimulation(map,stateSpace,u,states,name_video):
                 nshooters+=1
 
     #pickup station
-    PickUpIndex=ss.PickUpStateIndex(stateSpace,map)
+    PickUpIndex=ss.R1StateIndex(stateSpace,map)
     i_pickup = stateSpace[PickUpIndex,0]
     j_pickup = stateSpace[PickUpIndex,1]
     pick_up = np.array([j_pickup, i_pickup])
@@ -201,7 +201,7 @@ def VideoSimulation(map,stateSpace,u,states,name_video):
     j_base = stateSpace[BaseIndex,1]
     base = np.array([j_base, i_base])
     #drop_off
-    DropOffIndex = ss.TerminalStateIndex(stateSpace,map)
+    DropOffIndex = ss.R2StateIndex(stateSpace,map)
     i_dropoff = stateSpace[DropOffIndex,0]
     j_dropoff = stateSpace[DropOffIndex,1]
     drop_off = np.array([j_dropoff, i_dropoff])
@@ -228,7 +228,7 @@ def VideoSimulation(map,stateSpace,u,states,name_video):
     plt.fill([pick_up[0], pick_up[0], pick_up[0]+1, pick_up[0]+1, pick_up[0]],
                  [pick_up[1], pick_up[1]+1, pick_up[1]+1, pick_up[1], pick_up[1]],'y')
     plt.fill([drop_off[0], drop_off[0], drop_off[0]+1, drop_off[0]+1, drop_off[0]],
-                 [drop_off[1], drop_off[1]+1, drop_off[1]+1, drop_off[1], drop_off[1]],'b')
+                 [drop_off[1], drop_off[1]+1, drop_off[1]+1, drop_off[1], drop_off[1]],'y')
 
     for i in range(0,nshooters):
         plt.fill([shooters[i,0], shooters[i,0], shooters[i,0]+1, shooters[i,0]+1, shooters[i,0]],
@@ -239,13 +239,13 @@ def VideoSimulation(map,stateSpace,u,states,name_video):
                 [trees[i,1], trees[i,1]+1, trees[i,1]+1, trees[i,1], trees[i,1]],'g')
 
     plt.text(base[0]+0.5, base[1]+0.5, 'B')
-    plt.text(pick_up[0]+0.5, pick_up[1]+0.5, 'P')
-    plt.text(drop_off[0]+0.5, drop_off[1]+0.5, 'D')
+    plt.text(pick_up[0]+0.5, pick_up[1]+0.5, 'R1')
+    plt.text(drop_off[0]+0.5, drop_off[1]+0.5, 'R2')
     for i in range(0,nshooters):
         plt.text(shooters[i,0]+0.5, shooters[i,1]+0.5, 'S')
 
     ims = []
-    for s in range(0,len(states)):
+    for s in range(0,len(u)):             
         if u[s] == ss.NORTH:
             txt = u'\u2191'
         elif u[s] == ss.SOUTH:

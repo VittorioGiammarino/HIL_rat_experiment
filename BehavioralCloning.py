@@ -12,13 +12,13 @@ import StateSpace as ss
 import Simulation as sim
 
 
-def ProcessData(traj,control,stateSpace):
+def ProcessData(traj,control,psi,stateSpace):
     Xtr = np.empty((2,0),int)
     inputs = np.empty((3,0),int)
 
     for i in range(len(traj)):
-        Xtr = np.append(Xtr, [traj[i][:], control[i][:]],axis=1)
-        inputs = np.append(inputs, np.transpose(stateSpace[traj[i][:],:]), axis=1) 
+        Xtr = np.append(Xtr, [traj[i][:-1], control[i][:]],axis=1)
+        inputs = np.append(inputs, np.transpose(np.concatenate((stateSpace[traj[i][:-1],:], psi[i][:-1].reshape(len(psi[i])-1,1)),1)), axis=1) 
     
     labels = Xtr[1,:]
     TrainingSet = np.transpose(inputs) 
