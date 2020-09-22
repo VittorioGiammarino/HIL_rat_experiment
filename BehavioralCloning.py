@@ -77,103 +77,107 @@ def NN3(action_space):
     return model
     
     
-def MakePredictions(model, stateSpace):
+def MakePredictions(model, stateSpace, psi):
     probability_model = tf.keras.Sequential([model, 
                                          tf.keras.layers.Softmax()])
     
     deterministic_policy = np.empty(0)
-    predictions = probability_model.predict(stateSpace[:,:])
+    predictions = probability_model.predict(np.concatenate((stateSpace[:,:],psi*np.ones((len(stateSpace),1))),1))
     for i in range(stateSpace.shape[0]):    
         deterministic_policy = np.append(deterministic_policy, 
                                          np.argmax(predictions[i,:]))
         
     return predictions, deterministic_policy
 
-def EvaluationNN1(map, stateSpace, P, traj, control, ntraj):
-    average_NN = np.empty((0))
-    success_percentageNN = np.empty((0))
-    average_expert = np.empty((0))
+def GetFinalPolicy(model, stateSpace, action_space):
+    predictions_R1, deterministic_policy_R1 = MakePredictions(model, stateSpace, 0)
+    predictions_R2, deterministic_policy_R2 = MakePredictions(model, stateSpace, 1)
+    predictions_Both, deterministic_policy_Both = MakePredictions(model, stateSpace, 2)
+    predictions_None, deterministic_policy_None = MakePredictions(model, stateSpace, 3)
+    
+    policy = np.concatenate((deterministic_policy_R1.reshape(len(deterministic_policy_R1),1), 
+                             deterministic_policy_R2.reshape(len(deterministic_policy_R2),1),
+                             deterministic_policy_Both.reshape(len(deterministic_policy_Both),1),
+                             deterministic_policy_None.reshape(len(deterministic_policy_None),1)),1)
+    
+    predictions = np.concatenate((predictions_R1.reshape(len(predictions_R1),action_space,1),
+                                  predictions_R2.reshape(len(predictions_R2),action_space,1),
+                                  predictions_Both.reshape(len(predictions_Both),action_space,1),
+                                  predictions_None.reshape(len(predictions_None),action_space,1)),2)
+        
+    return predictions, policy
+
+
+def EvaluationNN1(map, stateSpace, P, traj, control, psi, ntraj):
+
+    average_reward_NN = np.empty((0))
 
     for i in range(len(ntraj)):
         action_space=5
-        labels, TrainingSet = ProcessData(traj[0:ntraj[i]][:],control[0:ntraj[i]][:],stateSpace)
+        labels, TrainingSet = ProcessData(traj[0:ntraj[i]][:],control[0:ntraj[i]][:],psi[0:ntraj[i]][:],stateSpace)
         model = NN1(action_space)
         model.fit(TrainingSet, labels, epochs=50)
-        predictions, deterministic_policy = MakePredictions(model, stateSpace)
+        predictions, deterministic_policy = GetFinalPolicy(model, stateSpace, action_space)
         T=100
         base=ss.BaseStateIndex(stateSpace,map)
-        TERMINAL_STATE_INDEX = ss.TerminalStateIndex(stateSpace,map)
-        [trajNN,controlNN,flagNN]=sim.StochasticSampleTrajMDP(P, predictions, 1000, T, base, TERMINAL_STATE_INDEX)
-        length_trajNN = np.empty((0))
-        for j in range(len(trajNN)):
-            length_trajNN = np.append(length_trajNN, len(trajNN[j][:]))
-        average_NN = np.append(average_NN,np.divide(np.sum(length_trajNN),len(length_trajNN)))
-        success_percentageNN = np.append(success_percentageNN,np.divide(np.sum(flagNN),len(length_trajNN)))
+        R1 = ss.R1StateIndex(stateSpace, map)
+        R2 = ss.R2StateIndex(stateSpace, map)
+        trajNN,controlNN,psiNN,rewardNN=sim.StochasticSampleTrajMDP(P, predictions, 300, T, base, R1, R2)
+        average_reward_NN = np.append(average_reward_NN, np.divide(np.sum(rewardNN),len(rewardNN)))
     
-        length_traj = np.empty((0))
-        for k in range(ntraj[i]):
-            length_traj = np.append(length_traj, len(traj[k][:]))
+    return average_reward_NN
 
-        average_expert = np.append(average_expert, np.divide(np.sum(length_traj),len(length_traj)))
-    
-    return average_NN, success_percentageNN, average_expert
+def EvaluationNN2(map, stateSpace, P, traj, control, psi, ntraj):
 
-def EvaluationNN2(map, stateSpace, P, traj, control, ntraj):
-    average_NN = np.empty((0))
-    success_percentageNN = np.empty((0))
-    average_expert = np.empty((0))
+    average_reward_NN = np.empty((0))
 
     for i in range(len(ntraj)):
         action_space=5
-        labels, TrainingSet = ProcessData(traj[1:ntraj[i]][:],control[1:ntraj[i]][:],stateSpace)
+        labels, TrainingSet = ProcessData(traj[0:ntraj[i]][:],control[0:ntraj[i]][:],psi[0:ntraj[i]][:],stateSpace)
         model = NN2(action_space)
         encoded = tf.keras.utils.to_categorical(labels)
         model.fit(TrainingSet, encoded, epochs=50)
-        predictions, deterministic_policy = MakePredictions(model, stateSpace)
-        T=1000
+        predictions, deterministic_policy = GetFinalPolicy(model, stateSpace, action_space)
+        T=100
         base=ss.BaseStateIndex(stateSpace,map)
-        TERMINAL_STATE_INDEX = ss.TerminalStateIndex(stateSpace,map)
-        [trajNN,controlNN,flagNN]=sim.StochasticSampleTrajMDP(P, predictions, 1000, T, base, TERMINAL_STATE_INDEX)
-        length_trajNN = np.empty((0))
-        for j in range(len(trajNN)):
-            length_trajNN = np.append(length_trajNN, len(trajNN[j][:]))
-        average_NN = np.append(average_NN,np.divide(np.sum(length_trajNN),len(length_trajNN)))
-        success_percentageNN = np.append(success_percentageNN,np.divide(np.sum(flagNN),len(length_trajNN)))
+        R1 = ss.R1StateIndex(stateSpace, map)
+        R2 = ss.R2StateIndex(stateSpace, map)
+        trajNN,controlNN,psiNN,rewardNN=sim.StochasticSampleTrajMDP(P, predictions, 300, T, base, R1, R2)
+        average_reward_NN = np.append(average_reward_NN, np.divide(np.sum(rewardNN),len(rewardNN)))
     
-        length_traj = np.empty((0))
-        for k in range(ntraj[i]):
-            length_traj = np.append(length_traj, len(traj[k][:]))
+    return average_reward_NN
 
-        average_expert = np.append(average_expert, np.divide(np.sum(length_traj),len(length_traj)))
-    
-    return average_NN, success_percentageNN, average_expert
+def EvaluationNN3(map, stateSpace, P, traj, control, psi, ntraj):
 
-def EvaluationNN3(map, stateSpace, P, traj, control, ntraj):
-    average_NN = np.empty((0))
-    success_percentageNN = np.empty((0))
-    average_expert = np.empty((0))
+    average_reward_NN = np.empty((0))
 
     for i in range(len(ntraj)):
         action_space=5
-        labels, TrainingSet = ProcessData(traj[1:ntraj[i]][:],control[1:ntraj[i]][:],stateSpace)
+        labels, TrainingSet = ProcessData(traj[0:ntraj[i]][:],control[0:ntraj[i]][:],psi[0:ntraj[i]][:],stateSpace)
         model = NN3(action_space)
         encoded = tf.keras.utils.to_categorical(labels)
         model.fit(TrainingSet, encoded, epochs=50)
-        predictions, deterministic_policy = MakePredictions(model, stateSpace)
-        T=1000
+        predictions, deterministic_policy = GetFinalPolicy(model, stateSpace, action_space)
+        T=100
         base=ss.BaseStateIndex(stateSpace,map)
-        TERMINAL_STATE_INDEX = ss.TerminalStateIndex(stateSpace,map)
-        [trajNN,controlNN,flagNN]=sim.StochasticSampleTrajMDP(P, predictions, 1000, T, base, TERMINAL_STATE_INDEX)
-        length_trajNN = np.empty((0))
-        for j in range(len(trajNN)):
-            length_trajNN = np.append(length_trajNN, len(trajNN[j][:]))
-        average_NN = np.append(average_NN,np.divide(np.sum(length_trajNN),len(length_trajNN)))
-        success_percentageNN = np.append(success_percentageNN,np.divide(np.sum(flagNN),len(length_trajNN)))
+        R1 = ss.R1StateIndex(stateSpace, map)
+        R2 = ss.R2StateIndex(stateSpace, map)
+        trajNN,controlNN,psiNN,rewardNN=sim.StochasticSampleTrajMDP(P, predictions, 300, T, base, R1, R2)
+        average_reward_NN = np.append(average_reward_NN, np.divide(np.sum(rewardNN),len(rewardNN)))
     
-        length_traj = np.empty((0))
-        for k in range(ntraj[i]):
-            length_traj = np.append(length_traj, len(traj[k][:]))
+    return average_reward_NN
 
-        average_expert = np.append(average_expert, np.divide(np.sum(length_traj),len(length_traj)))
+def ExpertAverageReward(reward, ntraj):
+    average_reward = np.empty((0))
     
-    return average_NN, success_percentageNN, average_expert
+    for i in range(len(ntraj)):
+        average_reward = np.append(average_reward, np.divide(np.sum(reward[0:ntraj[i]]),ntraj[i]))
+        
+    return average_reward
+    
+    
+    
+    
+    
+    
+    

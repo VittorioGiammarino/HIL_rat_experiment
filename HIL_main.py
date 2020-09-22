@@ -45,7 +45,7 @@ env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_R2, 'Figures/FiguresExpert/E
 env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_Both, 'Figures/FiguresExpert/Expert_Both.eps')
 
 # %% Generate Expert's trajectories
-T=150
+T=10
 base=ss.BaseStateIndex(stateSpace,map)
 traj, control, psi_evolution, reward = sim.SampleTrajMDP(P, u_tot_Expert, 300, T, base, R1_STATE_INDEX,R2_STATE_INDEX)
 labels, TrainingSet = bc.ProcessData(traj,control,psi_evolution,stateSpace)
@@ -64,7 +64,7 @@ NN_actions = hil.NN_actions(action_space, size_input)
 NN_termination = hil.NN_termination(termination_space, size_input)
 
 N=5 #Iterations
-zeta = 0.1 #Failure factor
+zeta = 0.001 #Failure factor
 mu = np.ones(option_space)*np.divide(1,option_space) #initial option probability distribution
 
 gain_lambdas = np.logspace(-2, 3, 3, dtype = 'float32')
@@ -77,7 +77,7 @@ Triple = hil.Triple(NN_options, NN_actions, NN_termination)
 
 env_specs = hil.Environment_specs(P, stateSpace, map)
 
-max_epoch = 1000
+max_epoch = 300
 
 ED = hil.Experiment_design(labels, TrainingSet, size_input, action_space, option_space, termination_space, N, zeta, mu, 
                            Triple, LAMBDAS, ETA, env_specs, max_epoch)
@@ -120,46 +120,46 @@ env.PlotOptimalSolution(map,stateSpace,Pi_Lo_o2, 'Figures/FiguresHIL/Reg2/option
         
 # %% Baum-Welch for provable HIL iteration
 
-N = 10
-zeta = 0.1
+N = 6
+zeta = 0.001
 mu = np.ones(option_space)*np.divide(1,option_space)
 T = TrainingSet.shape[0]
 TrainingSetTermination = hil.TrainingSetTermination(TrainingSet, option_space, size_input)
 TrainingSetActions, labels_reshaped = hil.TrainingAndLabelsReshaped(option_space,T, TrainingSet, labels, size_input)
 lambdas = tf.Variable(initial_value=1.*tf.ones((option_space,)), trainable=False)
-eta = tf.Variable(initial_value=100., trainable=False)
+eta = tf.Variable(initial_value=0.1, trainable=False)
 
 for n in range(N):
     print('iter', n, '/', N)
     
     # Uncomment for sequential Running
-    # alpha = hil.Alpha(TrainingSet, labels, option_space, termination_space, mu, zeta, NN_options, NN_actions, NN_termination)
-    # beta = hil.Beta(TrainingSet, labels, option_space, termination_space, zeta, NN_options, NN_actions, NN_termination)
-    # gamma = hil.Gamma(TrainingSet, option_space, termination_space, alpha, beta)
-    # gamma_tilde = hil.GammaTilde(TrainingSet, labels, beta, alpha, 
-    #                               NN_options, NN_actions, NN_termination, zeta, option_space, termination_space)
+    alpha = hil.Alpha(TrainingSet, labels, option_space, termination_space, mu, zeta, NN_options, NN_actions, NN_termination)
+    beta = hil.Beta(TrainingSet, labels, option_space, termination_space, zeta, NN_options, NN_actions, NN_termination)
+    gamma = hil.Gamma(TrainingSet, option_space, termination_space, alpha, beta)
+    gamma_tilde = hil.GammaTilde(TrainingSet, labels, beta, alpha, 
+                                  NN_options, NN_actions, NN_termination, zeta, option_space, termination_space)
     
     
     # MultiThreading Running
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        f1 = executor.submit(hil.Alpha, TrainingSet, labels, option_space, termination_space, mu, 
-                              zeta, NN_options, NN_actions, NN_termination)
-        f2 = executor.submit(hil.Beta, TrainingSet, labels, option_space, termination_space, zeta, 
-                              NN_options, NN_actions, NN_termination)  
-        alpha = f1.result()
-        beta = f2.result()
+    # with concurrent.futures.ThreadPoolExecutor() as executor:
+    #     f1 = executor.submit(hil.Alpha, TrainingSet, labels, option_space, termination_space, mu, 
+    #                           zeta, NN_options, NN_actions, NN_termination)
+    #     f2 = executor.submit(hil.Beta, TrainingSet, labels, option_space, termination_space, zeta, 
+    #                           NN_options, NN_actions, NN_termination)  
+    #     alpha = f1.result()
+    #     beta = f2.result()
         
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        f3 = executor.submit(hil.Gamma, TrainingSet, option_space, termination_space, alpha, beta)
-        f4 = executor.submit(hil.GammaTilde, TrainingSet, labels, beta, alpha, 
-                              NN_options, NN_actions, NN_termination, zeta, option_space, termination_space)  
-        gamma = f3.result()
-        gamma_tilde = f4.result()
+    # with concurrent.futures.ThreadPoolExecutor() as executor:
+    #     f3 = executor.submit(hil.Gamma, TrainingSet, option_space, termination_space, alpha, beta)
+    #     f4 = executor.submit(hil.GammaTilde, TrainingSet, labels, beta, alpha, 
+    #                           NN_options, NN_actions, NN_termination, zeta, option_space, termination_space)  
+    #     gamma = f3.result()
+    #     gamma_tilde = f4.result()
         
     print('Expectation done')
     print('Starting maximization step')
     optimizer = keras.optimizers.Adamax(learning_rate=1e-3)
-    epochs = 100 #number of iterations for the maximization step
+    epochs = 10 #number of iterations for the maximization step
             
     gamma_tilde_reshaped = hil.GammaTildeReshape(gamma_tilde, option_space)
     gamma_actions_false, gamma_actions_true = hil.GammaReshapeActions(T, option_space, action_space, gamma, labels_reshaped)
@@ -188,27 +188,52 @@ Triple_model.save(lambda_gain, eta_gain)
 # %% Load Model
 
 lambdas = tf.Variable(initial_value=1.*tf.ones((option_space,)), trainable=False)
-eta = tf.Variable(initial_value=100., trainable=False)
+eta = tf.Variable(initial_value=0.1, trainable=False)
 lambda_gain = lambdas.numpy()[0]
 eta_gain = eta.numpy()
 NN_options, NN_actions, NN_termination = hil.Triple.load(lambda_gain, eta_gain)
 
+# %% policy analysis
+
+#pi_hi
+psi = 3
+input_NN_options = np.concatenate((stateSpace, psi*np.ones((len(stateSpace),1))),1)
+Pi_HI = np.argmax(NN_options(input_NN_options).numpy(),1) 
+env.PlotOptimalOptions(map,stateSpace,Pi_HI, 'Figures/FiguresHIL/Pi_HI_psi{}.eps'.format(psi))
+
+#pi_lo
+o=0
+input_NN_action_0 = np.concatenate((stateSpace, psi*np.ones((len(stateSpace),1)), o*np.ones((len(stateSpace),1))),1)
+Pi_lo_0 = np.argmax(NN_actions(input_NN_action_0).numpy(),1) 
+env.PlotOptimalSolution(map,stateSpace,Pi_lo_0, 'Figures/FiguresHIL/PI_LO_o{}_psi{}.eps'.format(o, psi))
+o=1
+input_NN_action_1 = np.concatenate((stateSpace, psi*np.ones((len(stateSpace),1)), o*np.ones((len(stateSpace),1))),1)
+Pi_lo_1 = np.argmax(NN_actions(input_NN_action_1).numpy(),1) 
+env.PlotOptimalSolution(map,stateSpace,Pi_lo_1, 'Figures/FiguresHIL/PI_LO_o{}_psi{}.eps'.format(o, psi))
+
+#pi_b
+o=0
+input_NN_termination_0 = np.concatenate((stateSpace, psi*np.ones((len(stateSpace),1)), o*np.ones((len(stateSpace),1))),1)
+Pi_b_0 = np.argmax(NN_termination(input_NN_termination_0).numpy(),1) 
+env.PlotOptimalOptions(map,stateSpace,Pi_b_0, 'Figures/FiguresHIL/PI_b_o{}_psi{}.eps'.format(o, psi))
+o=1
+input_NN_termination_1 = np.concatenate((stateSpace, psi*np.ones((len(stateSpace),1)), o*np.ones((len(stateSpace),1))),1)
+Pi_b_1 = np.argmax(NN_termination(input_NN_termination_1).numpy(),1) 
+env.PlotOptimalOptions(map,stateSpace,Pi_b_1, 'Figures/FiguresHIL/PI_b_o{}_psi{}.eps'.format(o, psi))
+
 # %% Evaluation 
-Trajs=100
+Trajs=150
 base=ss.BaseStateIndex(stateSpace,map)
 [trajHIL,controlHIL,OptionsHIL, 
- TerminationHIL, flagHIL]=sim.HierarchicalStochasticSampleTrajMDP(P, stateSpace, NN_options, 
-                                                                  NN_actions, NN_termination, mu, 1000, 
-                                                                  Trajs, base, TERMINAL_STATE_INDEX, zeta, option_space)
-
-length_trajHIL = np.empty((0))
-for j in range(len(trajHIL)):
-    length_trajHIL = np.append(length_trajHIL, len(trajHIL[j][:]))
+ TerminationHIL, psiHIL, rewardHIL]=sim.HierarchicalStochasticSampleTrajMDP(P, stateSpace, NN_options, 
+                                                                            NN_actions, NN_termination, mu, 300, 
+                                                                            Trajs, base, R1_STATE_INDEX, R2_STATE_INDEX, 
+                                                                            zeta, option_space)
+                                                                            
+best = np.argmax(rewardHIL)                                                                
                                                                   
-best = np.argmin(length_trajHIL)                                                                  
-                                                                  
-# %% Video of Best Simulation
-env.HILVideoSimulation(map,stateSpace,controlHIL[best][:],trajHIL[best][:],OptionsHIL[0][:],"Videos/VideosHIL/sim_HIL.mp4")
+# %% Video of Best Simulation 
+env.HILVideoSimulation(map,stateSpace,controlHIL[best][:],trajHIL[best][:],OptionsHIL[best][:], psiHIL[best][:],"Videos/VideosHIL/sim_HIL.mp4")
 
 # %% Evaluation on multiple trajs
 ntraj = [2, 5, 10, 20, 50, 100]

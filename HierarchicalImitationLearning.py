@@ -1023,7 +1023,7 @@ class Triple:
     def load(lambdas, eta):
         NN_options = keras.models.load_model('Triple_models/H_model_lambda_{}_eta_{}/NN_options'.format(lambdas,eta))
         NN_actions = keras.models.load_model('Triple_models/H_model_lambda_{}_eta_{}/NN_actions'.format(lambdas,eta))
-        NN_termination = keras.models.load_model('Triple_models/H_model_lambda_{}_eta_{}/NN_actions'.format(lambdas,eta))
+        NN_termination = keras.models.load_model('Triple_models/H_model_lambda_{}_eta_{}/NN_termination'.format(lambdas,eta))
         
         return NN_options, NN_actions, NN_termination
 

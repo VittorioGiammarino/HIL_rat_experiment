@@ -83,21 +83,26 @@ def SampleTrajMDP(P, u, max_epoch, nTraj, initial_state, terminal_state1, termin
     return traj, control, psi_evolution, reward
 
 
-def StochasticSampleTrajMDP(P,u_policy,max_epoch,nTraj,initial_state,terminal_state):
+def StochasticSampleTrajMDP(P, u_policy, max_epoch, nTraj, initial_state, terminal_state1, terminal_state2):
     
     traj = [[None]*1 for _ in range(nTraj)]
     control = [[None]*1 for _ in range(nTraj)]
-    flag = np.empty((0,0),int)
+    reward = np.empty((0,0),int)
+    psi_evolution = [[None]*1 for _ in range(nTraj)]
     
     for t in range(0,nTraj):
         
         x = np.empty((0,0),int)
         x = np.append(x, initial_state)
         u_tot = np.empty((0,0))
+        psi_tot = np.empty((0,0),int)
+        psi = 3
+        psi_tot = np.append(psi_tot, psi)
+        r=0
         
         for k in range(0,max_epoch):
             # draw action
-            prob_u = u_policy[x[k],:]
+            prob_u = u_policy[x[k],:,psi]
             prob_u_rescaled = np.divide(prob_u,np.amin(prob_u)+0.01)
             for i in range(1,prob_u_rescaled.shape[0]):
                 prob_u_rescaled[i]=prob_u_rescaled[i]+prob_u_rescaled[i-1]
@@ -115,30 +120,29 @@ def StochasticSampleTrajMDP(P,u_policy,max_epoch,nTraj,initial_state,terminal_st
             x = np.append(x, x_k_possible[0][index_x_plus1])
             u_tot = np.append(u_tot,u)
             
-            if x[k+1]==terminal_state:
-                u_tot = np.append(u_tot,np.argmax(u_policy[terminal_state]))
-                break
+            if x[k] == terminal_state1 or x[k] == terminal_state2:
+                r = r + 1 
+            
+            # Randomly update the reward
+            psi = UpdateReward(psi, x[k], terminal_state1, terminal_state2)
+            psi_tot = np.append(psi_tot, psi)
         
-        traj[t][:] = x
-        control[t][:]=u_tot
+        traj[t] = x
+        control[t] = u_tot
+        psi_evolution[t] = psi_tot                
+        reward = np.append(reward,r)
         
-        if x[-1]==terminal_state:
-            success = 1
-        else:
-            success = 0
-                
-        flag = np.append(flag,success)
-        
-    return traj, control, flag
+    return traj, control, psi_evolution, reward
         
 def HierarchicalStochasticSampleTrajMDP(P, stateSpace, NN_options, NN_actions, NN_termination, mu, 
-                                        max_epoch,nTraj,initial_state,terminal_state, zeta, option_space):
+                                        max_epoch,nTraj,initial_state,terminal_state1, terminal_state2, zeta, option_space):
     
     traj = [[None]*1 for _ in range(nTraj)]
     control = [[None]*1 for _ in range(nTraj)]
     Option = [[None]*1 for _ in range(nTraj)]
     Termination = [[None]*1 for _ in range(nTraj)]
-    flag = np.empty((0,0),int)
+    reward = np.empty((0,0),int)
+    psi_evolution = [[None]*1 for _ in range(nTraj)]
     
     for t in range(0,nTraj):
         
@@ -147,6 +151,10 @@ def HierarchicalStochasticSampleTrajMDP(P, stateSpace, NN_options, NN_actions, N
         u_tot = np.empty((0,0))
         o_tot = np.empty((0,0),int)
         b_tot = np.empty((0,0),int)
+        psi_tot = np.empty((0,0),int)
+        psi = 3
+        psi_tot = np.append(psi_tot, psi)
+        r=0
         
         # Initial Option
         prob_o = mu
@@ -158,7 +166,8 @@ def HierarchicalStochasticSampleTrajMDP(P, stateSpace, NN_options, NN_actions, N
         o_tot = np.append(o_tot,o)
         
         # Termination
-        state = stateSpace[x[0],:].reshape(1,len(stateSpace[x[0],:]))
+        state_partial = stateSpace[x[0],:].reshape(1,len(stateSpace[x[0],:]))
+        state = np.concatenate((state_partial,[[psi]]),1)
         prob_b = NN_termination(np.append(state,[[o]], axis=1)).numpy()
         prob_b_rescaled = np.divide(prob_b,np.amin(prob_b)+0.01)
         for i in range(1,prob_b_rescaled.shape[1]):
@@ -187,7 +196,8 @@ def HierarchicalStochasticSampleTrajMDP(P, stateSpace, NN_options, NN_actions, N
         o_tot = np.append(o_tot,o)
         
         for k in range(0,max_epoch):
-            state = stateSpace[x[k],:].reshape(1,len(stateSpace[x[k],:]))
+            state_partial = stateSpace[x[k],:].reshape(1,len(stateSpace[x[k],:]))
+            state = np.concatenate((state_partial,[[psi]]),1)
             # draw action
             prob_u = NN_actions(np.append(state,[[o]], axis=1)).numpy()
             prob_u_rescaled = np.divide(prob_u,np.amin(prob_u)+0.01)
@@ -208,14 +218,17 @@ def HierarchicalStochasticSampleTrajMDP(P, stateSpace, NN_options, NN_actions, N
             x = np.append(x, x_k_possible[0][index_x_plus1])
             u_tot = np.append(u_tot,u)
             
-            if x[k+1]==terminal_state:
-                state = stateSpace[terminal_state,:].reshape(1,len(stateSpace[terminal_state,:]))
-                u_tot = np.append(u_tot,np.argmax(NN_actions(np.append(state,[[o]], axis=1)).numpy()))
-                break
+            if x[k] == terminal_state1 or x[k] == terminal_state2:
+                r = r + 1 
+            
+            # Randomly update the reward
+            psi = UpdateReward(psi, x[k], terminal_state1, terminal_state2)
+            psi_tot = np.append(psi_tot, psi)
             
             # Select Termination
             # Termination
-            state_plus1 = stateSpace[x[k+1],:].reshape(1,len(stateSpace[x[k+1],:]))
+            state_plus1_partial = stateSpace[x[k+1],:].reshape(1,len(stateSpace[x[k+1],:]))
+            state_plus1 = np.concatenate((state_plus1_partial,[[psi]]),1)
             prob_b = NN_termination(np.append(state_plus1,[[o]], axis=1)).numpy()
             prob_b_rescaled = np.divide(prob_b,np.amin(prob_b)+0.01)
             for i in range(1,prob_b_rescaled.shape[1]):
@@ -244,18 +257,14 @@ def HierarchicalStochasticSampleTrajMDP(P, stateSpace, NN_options, NN_actions, N
             o_tot = np.append(o_tot,o)
             
         
-        traj[t][:] = x
-        control[t][:]=u_tot
-        Option[t][:]=o_tot
-        Termination[t][:]=b_tot
+        traj[t] = x
+        control[t]=u_tot
+        Option[t]=o_tot
+        Termination[t]=b_tot
+        psi_evolution[t] = psi_tot                
+        reward = np.append(reward,r)
+
         
-        if x[-1]==terminal_state:
-            success = 1
-        else:
-            success = 0
-                
-        flag = np.append(flag,success)
-        
-    return traj, control, Option, Termination, flag                
+    return traj, control, Option, Termination, psi_evolution, reward               
             
             
