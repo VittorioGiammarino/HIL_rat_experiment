@@ -42,7 +42,9 @@ def PreprocessData(bc_data_dir):
 
 def NN_options(option_space,size_input):
     model = keras.Sequential([
-    keras.layers.Dense(300, activation='relu', input_shape=(size_input,)),
+    keras.layers.Dense(100, activation='relu', input_shape=(size_input,),
+                      kernel_initializer=keras.initializers.RandomUniform(minval=-0.05, maxval=0.05, seed=None),
+                      bias_initializer=keras.initializers.Zeros()),
     keras.layers.Dense(option_space),
     keras.layers.Softmax()
     ])
@@ -56,7 +58,9 @@ def NN_options(option_space,size_input):
 
 def NN_actions(action_space, size_input):
     model = keras.Sequential([
-    keras.layers.Dense(300, activation='relu', input_shape=(size_input+1,)),
+    keras.layers.Dense(100, activation='relu', input_shape=(size_input+1,),
+                       kernel_initializer=keras.initializers.RandomUniform(minval=-0.05, maxval=0.05, seed=None),
+                      bias_initializer=keras.initializers.Zeros()),
     keras.layers.Dense(action_space),
     keras.layers.Softmax()
     ])
@@ -70,7 +74,9 @@ def NN_actions(action_space, size_input):
 
 def NN_termination(termination_space, size_input):
     model = keras.Sequential([
-    keras.layers.Dense(300, activation='relu', input_shape=(size_input+1,)),
+    keras.layers.Dense(100, activation='relu', input_shape=(size_input+1,),
+                      kernel_initializer=keras.initializers.RandomUniform(minval=-0.05, maxval=0.05, seed=None),
+                      bias_initializer=keras.initializers.Zeros()),
     keras.layers.Dense(termination_space),
     keras.layers.Softmax()
     ])
@@ -117,7 +123,7 @@ def Pi_b(b, Pi_b_parameterization, state_and_option):
 def Pi_combined(ot, ot_past, a, b, Pi_hi_parameterization, Pi_lo_parameterization, Pi_b_parameterization, state, zeta, option_space):
     Pi_hi_eval = Pi_hi_bar(b, ot, ot_past, Pi_hi_parameterization, state, zeta, option_space)
     Pi_lo_eval = Pi_lo(a, Pi_lo_parameterization, np.append(state, [[ot]],axis=1))
-    Pi_b_eval = Pi_b(b, Pi_b_parameterization, np.append(state, [[ot]],axis=1))
+    Pi_b_eval = Pi_b(b, Pi_b_parameterization, np.append(state, [[ot_past]],axis=1))
     output = Pi_hi_eval*Pi_lo_eval*Pi_b_eval
     
     return output
@@ -268,7 +274,7 @@ def Gamma(TrainingSet, option_space, termination_space, alpha, beta):
 
 def GammaTilde(TrainingSet, labels, beta, alpha, Pi_hi_parameterization, Pi_lo_parameterization, 
                Pi_b_parameterization, zeta, option_space, termination_space):
-    gamma_tilde = np.empty((option_space,termination_space,len(TrainingSet)))
+    gamma_tilde = np.ones((option_space,termination_space,len(TrainingSet)))
     for t in range(1,len(TrainingSet)):
         print('gamma tilde iter', t, '/', len(TrainingSet)-1)
         state = TrainingSet[t,:].reshape(1,len(TrainingSet[t,:]))
@@ -564,8 +570,8 @@ def OptimizeLossAndRegularizer2(epochs, TrainingSetTermination, NN_termination, 
 
 
 def RegularizedLossTot(gamma_tilde_reshaped, gamma_reshaped_options, gamma_actions_true, gamma_actions_false, 
-                    NN_termination, NN_options, NN_actions,TrainingSetTermination, TrainingSetActions, 
-                    TrainingSet, eta, lambdas, gamma, T, option_space, labels, size_input):
+                       NN_termination, NN_options, NN_actions, TrainingSetTermination, TrainingSetActions, 
+                       TrainingSet, eta, lambdas, gamma, T, option_space, labels, size_input):
     
     pi_b = NN_termination(TrainingSetTermination,training=True)
     pi_lo = NN_actions(TrainingSetActions,training=True)

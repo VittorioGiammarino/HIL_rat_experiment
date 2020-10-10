@@ -390,7 +390,7 @@ def HILVideoSimulation(map,stateSpace,u,states,o,psi,name_video):
         if o[s]==0:
             c = 'c'
         elif o[s]==1:
-            c = 'm'
+            c = 'lime'
         elif o[s]==2:
             c = 'y'         
         im1 = plt.text(stateSpace[states[s],1]+0.3, stateSpace[states[s],0]+0.1, txt, fontsize=20, backgroundcolor=c)

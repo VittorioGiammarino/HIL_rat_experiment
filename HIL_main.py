@@ -38,23 +38,23 @@ u_opt_ind_vi_R1 = u_opt_ind_vi_R1.reshape(len(u_opt_ind_vi_R1),1)
 u_opt_ind_vi_R2 = u_opt_ind_vi_R2.reshape(len(u_opt_ind_vi_R2),1)
 u_opt_ind_vi_Both = u_opt_ind_vi_Both.reshape(len(u_opt_ind_vi_Both),1)
 u_tot_Expert = np.concatenate((u_opt_ind_vi_R1, u_opt_ind_vi_R2, u_opt_ind_vi_Both,ss.HOVER*np.ones((len(u_opt_ind_vi_R1),1))),1)
-# %% Plot Optimal Solution
 
+# %% Plot Optimal Solution
 env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_R1, 'Figures/FiguresExpert/Expert_R1.eps')
 env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_R2, 'Figures/FiguresExpert/Expert_R2.eps')
 env.PlotOptimalSolution(map,stateSpace,u_opt_ind_vi_Both, 'Figures/FiguresExpert/Expert_Both.eps')
 
 # %% Generate Expert's trajectories
-T=10
+T=2
 base=ss.BaseStateIndex(stateSpace,map)
-traj, control, psi_evolution, reward = sim.SampleTrajMDP(P, u_tot_Expert, 300, T, base, R1_STATE_INDEX,R2_STATE_INDEX)
+traj, control, psi_evolution, reward = sim.SampleTrajMDP(P, u_tot_Expert, 100, T, base, R1_STATE_INDEX,R2_STATE_INDEX)
 labels, TrainingSet = bc.ProcessData(traj,control,psi_evolution,stateSpace)
 
 # %% Simulation
 env.VideoSimulation(map,stateSpace,control[1][:],traj[1][:], psi_evolution[1][:], 'Videos/VideosExpert/Expert_video_simulation.mp4')
 
 # %% HIL initialization
-option_space = 2
+option_space = 3
 action_space = 5
 termination_space = 2
 size_input = TrainingSet.shape[1]
@@ -63,8 +63,8 @@ NN_options = hil.NN_options(option_space, size_input)
 NN_actions = hil.NN_actions(action_space, size_input)
 NN_termination = hil.NN_termination(termination_space, size_input)
 
-N=5 #Iterations
-zeta = 0.001 #Failure factor
+N=10 #Iterations
+zeta = 0.0001 #Failure factor
 mu = np.ones(option_space)*np.divide(1,option_space) #initial option probability distribution
 
 gain_lambdas = np.logspace(-2, 3, 3, dtype = 'float32')
@@ -81,53 +81,17 @@ max_epoch = 300
 
 ED = hil.Experiment_design(labels, TrainingSet, size_input, action_space, option_space, termination_space, N, zeta, mu, 
                            Triple, LAMBDAS, ETA, env_specs, max_epoch)
-
-
-# %% Understanding Regularization: Regularizer 1 (maximize entropy of pi_lo for each option)
-
-lambdas = tf.Variable(initial_value=1.*tf.ones((option_space,)), trainable=False)
-NN_Termination, NN_Actions, NN_Options = hil.BaumWelchRegularizer1(ED, lambdas)
-Triple_reg1 = hil.Triple(NN_Options, NN_Actions, NN_Termination)
-
-Pi_HI = np.argmax(Triple_reg1.NN_options(stateSpace).numpy(),1)  
-pi_hi = Triple_reg1.NN_options(stateSpace).numpy()
-Pi_Lo_o1 = np.argmax(Triple_reg1.NN_actions(hil.TrainingSetPiLo(stateSpace,0, size_input)).numpy(),1)
-Pi_Lo_o2 = np.argmax(Triple_reg1.NN_actions(hil.TrainingSetPiLo(stateSpace,1, size_input)).numpy(),1)
-
-
-env.PlotOptimalOptions(map,stateSpace,Pi_HI, 'Figures/FiguresHIL/Reg1/pi_hi_pick_up.eps', 'Figures/FiguresHIL/Reg1/pi_hi_drop_off.eps')       
-env.PlotOptimalSolution(map,stateSpace,Pi_Lo_o1, 'Figures/FiguresHIL/Reg1/option1_pickup_reg.eps', 'Figures/FiguresHIL/Reg1/option1_dropoff_reg.eps')
-env.PlotOptimalSolution(map,stateSpace,Pi_Lo_o2, 'Figures/FiguresHIL/Reg1/option2_pickup_reg.eps', 'Figures/FiguresHIL/Reg1/option2_dropoff_reg.eps')
-
-
-# %% Understanding Regularization: Regularizer 2 (Minimize expectation of the responsibilities)
-
-eta = tf.Variable(initial_value=1., trainable=False)
-
-NN_Termination, NN_Actions, NN_Options = hil.BaumWelchRegularizer2(ED, eta)
-Triple_reg2 = hil.Triple(NN_Options, NN_Actions, NN_Termination)
-
-Pi_HI = np.argmax(Triple_reg2.NN_options(stateSpace).numpy(),1)  
-pi_hi = Triple_reg2.NN_options(stateSpace).numpy()
-Pi_Lo_o1 = np.argmax(Triple_reg2.NN_actions(hil.TrainingSetPiLo(stateSpace,0, size_input)).numpy(),1)
-Pi_Lo_o2 = np.argmax(Triple_reg2.NN_actions(hil.TrainingSetPiLo(stateSpace,1, size_input)).numpy(),1)
-
-
-env.PlotOptimalOptions(map,stateSpace,Pi_HI, 'Figures/FiguresHIL/Reg2/pi_hi_pick_up.eps', 'Figures/FiguresHIL/Reg2/pi_hi_drop_off.eps')       
-env.PlotOptimalSolution(map,stateSpace,Pi_Lo_o1, 'Figures/FiguresHIL/Reg2/option1_pickup_reg.eps', 'Figures/FiguresHIL/Reg2/option1_dropoff_reg.eps')
-env.PlotOptimalSolution(map,stateSpace,Pi_Lo_o2, 'Figures/FiguresHIL/Reg2/option2_pickup_reg.eps', 'Figures/FiguresHIL/Reg2/option2_dropoff_reg.eps')
-        
-        
+      
 # %% Baum-Welch for provable HIL iteration
 
-N = 6
-zeta = 0.001
+N = 10
+zeta = 0.0001
 mu = np.ones(option_space)*np.divide(1,option_space)
 T = TrainingSet.shape[0]
 TrainingSetTermination = hil.TrainingSetTermination(TrainingSet, option_space, size_input)
 TrainingSetActions, labels_reshaped = hil.TrainingAndLabelsReshaped(option_space,T, TrainingSet, labels, size_input)
-lambdas = tf.Variable(initial_value=1.*tf.ones((option_space,)), trainable=False)
-eta = tf.Variable(initial_value=0.1, trainable=False)
+lambdas = tf.Variable(initial_value=0.*tf.ones((option_space,)), trainable=False)
+eta = tf.Variable(initial_value=0., trainable=False)
 
 for n in range(N):
     print('iter', n, '/', N)
@@ -159,7 +123,7 @@ for n in range(N):
     print('Expectation done')
     print('Starting maximization step')
     optimizer = keras.optimizers.Adamax(learning_rate=1e-3)
-    epochs = 10 #number of iterations for the maximization step
+    epochs = 30 #number of iterations for the maximization step
             
     gamma_tilde_reshaped = hil.GammaTildeReshape(gamma_tilde, option_space)
     gamma_actions_false, gamma_actions_true = hil.GammaReshapeActions(T, option_space, action_space, gamma, labels_reshaped)
@@ -196,7 +160,7 @@ NN_options, NN_actions, NN_termination = hil.Triple.load(lambda_gain, eta_gain)
 # %% policy analysis
 
 #pi_hi
-psi = 3
+psi = 0
 input_NN_options = np.concatenate((stateSpace, psi*np.ones((len(stateSpace),1))),1)
 Pi_HI = np.argmax(NN_options(input_NN_options).numpy(),1) 
 env.PlotOptimalOptions(map,stateSpace,Pi_HI, 'Figures/FiguresHIL/Pi_HI_psi{}.eps'.format(psi))
@@ -210,6 +174,10 @@ o=1
 input_NN_action_1 = np.concatenate((stateSpace, psi*np.ones((len(stateSpace),1)), o*np.ones((len(stateSpace),1))),1)
 Pi_lo_1 = np.argmax(NN_actions(input_NN_action_1).numpy(),1) 
 env.PlotOptimalSolution(map,stateSpace,Pi_lo_1, 'Figures/FiguresHIL/PI_LO_o{}_psi{}.eps'.format(o, psi))
+o=2
+input_NN_action_1 = np.concatenate((stateSpace, psi*np.ones((len(stateSpace),1)), o*np.ones((len(stateSpace),1))),1)
+Pi_lo_1 = np.argmax(NN_actions(input_NN_action_1).numpy(),1) 
+env.PlotOptimalSolution(map,stateSpace,Pi_lo_1, 'Figures/FiguresHIL/PI_LO_o{}_psi{}.eps'.format(o, psi))
 
 #pi_b
 o=0
@@ -219,6 +187,10 @@ env.PlotOptimalOptions(map,stateSpace,Pi_b_0, 'Figures/FiguresHIL/PI_b_o{}_psi{}
 o=1
 input_NN_termination_1 = np.concatenate((stateSpace, psi*np.ones((len(stateSpace),1)), o*np.ones((len(stateSpace),1))),1)
 Pi_b_1 = np.argmax(NN_termination(input_NN_termination_1).numpy(),1) 
+env.PlotOptimalOptions(map,stateSpace,Pi_b_1, 'Figures/FiguresHIL/PI_b_o{}_psi{}.eps'.format(o, psi))
+o=2
+input_NN_termination_2 = np.concatenate((stateSpace, psi*np.ones((len(stateSpace),1)), o*np.ones((len(stateSpace),1))),1)
+Pi_b_2 = np.argmax(NN_termination(input_NN_termination_2).numpy(),1) 
 env.PlotOptimalOptions(map,stateSpace,Pi_b_1, 'Figures/FiguresHIL/PI_b_o{}_psi{}.eps'.format(o, psi))
 
 # %% Evaluation 
